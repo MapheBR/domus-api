@@ -14,12 +14,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Card from "../../components/Card";
 import { Colors, Shadows } from "../../theme/colors";
+import { useAuth } from "../../contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
 export default function HomeScreen({ onLogout, onGoTo }) {
+  const { user, userData } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const isEmployer = userData?.role === "employer";
+  const fallbackName = user?.displayName || user?.email?.split("@")[0] || "Usuário";
+  const firstName = userData?.name?.trim()?.split(" ")[0] || fallbackName;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -47,32 +52,47 @@ export default function HomeScreen({ onLogout, onGoTo }) {
       month: "short",
     });
 
-  const actions = [
-    {
-      id: "checkin",
-      icon: "finger-print-outline",
-      label: "Ponto",
-      color: Colors.orange,
-    },
-    {
-      id: "employees",
-      icon: "people-outline",
-      label: "Equipe",
-      color: Colors.teal,
-    },
-    {
-      id: "records",
-      icon: "time-outline",
-      label: "Registros",
-      color: Colors.info,
-    },
-    {
-      id: "reports",
-      icon: "bar-chart-outline",
-      label: "Relatórios",
-      color: Colors.success,
-    },
-  ];
+  const actions = isEmployer
+    ? [
+        {
+          id: "employees",
+          icon: "people-outline",
+          label: "Equipe",
+          color: Colors.teal,
+        },
+        {
+          id: "records",
+          icon: "time-outline",
+          label: "Registros",
+          color: Colors.info,
+        },
+        {
+          id: "reports",
+          icon: "bar-chart-outline",
+          label: "Relatórios",
+          color: Colors.success,
+        },
+      ]
+    : [
+        {
+          id: "checkin",
+          icon: "finger-print-outline",
+          label: "Ponto",
+          color: Colors.orange,
+        },
+        {
+          id: "records",
+          icon: "time-outline",
+          label: "Registros",
+          color: Colors.info,
+        },
+        {
+          id: "reports",
+          icon: "bar-chart-outline",
+          label: "Relatórios",
+          color: Colors.success,
+        },
+      ];
 
   const stats = [
     { icon: "time-outline", value: "176h", label: "Horas", color: Colors.teal },
@@ -109,7 +129,7 @@ export default function HomeScreen({ onLogout, onGoTo }) {
                 />
                 <View>
                   <Text style={styles.greeting}>{greeting()}</Text>
-                  <Text style={styles.userName}>Usuário</Text>
+                  <Text style={styles.userName}>{firstName}</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={onLogout} style={styles.headerBtn}>
@@ -126,26 +146,49 @@ export default function HomeScreen({ onLogout, onGoTo }) {
               <Text style={styles.clockDate}>{fmtDate(currentTime)}</Text>
               <Text style={styles.clockTime}>{fmtTime(currentTime)}</Text>
 
-              <TouchableOpacity
-                onPress={() => onGoTo("checkin")}
-                activeOpacity={0.9}
-                style={{ width: "100%", marginTop: 16 }}
-              >
-                <LinearGradient
-                  colors={Colors.gradientOrange}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.checkinBtn, Shadows.orange]}
+              {!isEmployer ? (
+                <TouchableOpacity
+                  onPress={() => onGoTo("checkin")}
+                  activeOpacity={0.9}
+                  style={{ width: "100%", marginTop: 16 }}
                 >
-                  <Ionicons name="finger-print" size={20} color="#FFF" />
-                  <Text style={styles.checkinText}>Registrar Ponto</Text>
-                  <Ionicons
-                    name="arrow-forward"
-                    size={16}
-                    color="rgba(255,255,255,0.7)"
-                  />
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={Colors.gradientOrange}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.checkinBtn, Shadows.orange]}
+                  >
+                    <Ionicons name="finger-print" size={20} color="#FFF" />
+                    <Text style={styles.checkinText}>Registrar Ponto</Text>
+                    <Ionicons
+                      name="arrow-forward"
+                      size={16}
+                      color="rgba(255,255,255,0.7)"
+                    />
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => onGoTo("employees")}
+                  activeOpacity={0.9}
+                  style={{ width: "100%", marginTop: 16 }}
+                >
+                  <LinearGradient
+                    colors={Colors.gradientTeal}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.checkinBtn, Shadows.teal]}
+                  >
+                    <Ionicons name="people" size={20} color="#FFF" />
+                    <Text style={styles.checkinText}>Ver equipe e pontos</Text>
+                    <Ionicons
+                      name="arrow-forward"
+                      size={16}
+                      color="rgba(255,255,255,0.7)"
+                    />
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Quick Actions */}

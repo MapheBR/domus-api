@@ -1,43 +1,96 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Header from "../../components/Header";
-import Button from "../../components/Button";
 import { Colors, Shadows } from "../../theme/colors";
+import { useAuth } from "../../contexts/AuthContext";
+import { addEmployee, getEmployees } from "../../config/firebase";
+import Input from "../../components/Input";
+import Button from "../../components/Button";
 
-const MOCK_EMPLOYEES = [
-  {
-    id: "1",
-    name: "Ana Maria Silva",
-    role: "Empregada Doméstica",
-    salary: 1412,
-    status: "active",
-    startDate: "2024-03-15",
-    hoursThisMonth: 168,
-    overtimeThisMonth: 4,
-  },
-  {
-    id: "2",
-    name: "José Santos",
-    role: "Motorista",
-    salary: 1800,
-    status: "active",
-    startDate: "2024-06-01",
-    hoursThisMonth: 176,
-    overtimeThisMonth: 8,
-  },
-];
+export default function EmployeesScreen({ onBack }) {
+  const { user, userData } = useAuth();
+  const [employees, setEmployees] = useState([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+  const [salary, setSalary] = useState("");
+  const [saving, setSaving] = useState(false);
 
-export default function EmployeesScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
+  const loadEmployees = async () => {
+    if (!user?.uid) return;
+    const result = await getEmployees(user.uid);
+    if (result.success) {
+      setEmployees(result.data || []);
+    }
+  };
+
+  useEffect(() => {
+    loadEmployees();
+  }, [user?.uid]);
+
+  if (userData?.role !== "employer") {
+    return (
+      <View style={styles.container}>
+        <Header
+          title="Empregados"
+          subtitle="Acesso exclusivo do empregador"
+          showBack
+          onBack={onBack}
+        />
+        <View style={styles.emptyState}>
+          <Ionicons name="lock-closed-outline" size={56} color={Colors.gray400} />
+          <Text style={styles.emptyTitle}>Sem permissão</Text>
+          <Text style={styles.emptySubtitle}>
+            Apenas contas de empregador podem gerenciar funcionários.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const handleAddEmployee = async () => {
+    if (!name.trim()) {
+      Alert.alert("Atenção", "Informe o nome do funcionário.");
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert("Atenção", "Informe o e-mail do funcionário.");
+      return;
+    }
+
+    setSaving(true);
+    const result = await addEmployee(user.uid, {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      role: role.trim() || "Funcionário",
+      salary: Number(salary) || 0,
+      status: "active",
+      hoursThisMonth: 0,
+      overtimeThisMonth: 0,
+    });
+    setSaving(false);
+
+    if (!result.success) {
+      Alert.alert("Erro", result.error);
+      return;
+    }
+
+    setName("");
+    setEmail("");
+    setRole("");
+    setSalary("");
+    await loadEmployees();
+    Alert.alert("Sucesso", "Funcionário adicionado.");
+  };
 
   const renderEmployee = ({ item }) => (
     <TouchableOpacity style={[styles.card, Shadows.medium]} activeOpacity={0.7}>
@@ -53,7 +106,8 @@ export default function EmployeesScreen({ navigation }) {
         </LinearGradient>
         <View style={styles.employeeInfo}>
           <Text style={styles.employeeName}>{item.name}</Text>
-          <Text style={styles.employeeRole}>{item.role}</Text>
+          <Text style={styles.employeeRole}>{item.role || "Funcionário"}</Text>
+          {!!item.email && <Text style={styles.employeeEmail}>{item.email}</Text>}
         </View>
         <View
           style={[
@@ -91,19 +145,21 @@ export default function EmployeesScreen({ navigation }) {
         <View style={styles.stat}>
           <Text style={styles.statValue}>
             R${" "}
-            {item.salary.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            {(item.salary || 0).toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+            })}
           </Text>
           <Text style={styles.statLabel}>Salário</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
-          <Text style={styles.statValue}>{item.hoursThisMonth}h</Text>
+          <Text style={styles.statValue}>{item.hoursThisMonth || 0}h</Text>
           <Text style={styles.statLabel}>Horas/mês</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
           <Text style={[styles.statValue, { color: Colors.orange }]}>
-            {item.overtimeThisMonth}h
+            {item.overtimeThisMonth || 0}h
           </Text>
           <Text style={styles.statLabel}>Extras</Text>
         </View>
@@ -112,16 +168,55 @@ export default function EmployeesScreen({ navigation }) {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <Header
         title="Empregados"
         subtitle="Gerenciar funcionários"
-        rightIcon="add-circle"
-        onRightPress={() => navigation.navigate("AddEmployee")}
+        showBack
+        onBack={onBack}
       />
 
+      <View style={styles.formBox}>
+        <Input
+          label="Nome do funcionário"
+          value={name}
+          onChangeText={setName}
+          placeholder="Ex.: Maria Souza"
+          icon="person-outline"
+        />
+        <Input
+          label="E-mail do funcionário"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="funcionario@email.com"
+          keyboardType="email-address"
+          icon="mail-outline"
+        />
+        <Input
+          label="Função"
+          value={role}
+          onChangeText={setRole}
+          placeholder="Ex.: Babá"
+          icon="briefcase-outline"
+        />
+        <Input
+          label="Salário"
+          value={salary}
+          onChangeText={setSalary}
+          placeholder="Ex.: 1800"
+          keyboardType="numeric"
+          icon="cash-outline"
+        />
+        <Button
+          title="Adicionar funcionário"
+          icon="add"
+          onPress={handleAddEmployee}
+          loading={saving}
+        />
+      </View>
+
       <FlatList
-        data={MOCK_EMPLOYEES}
+        data={employees}
         renderItem={renderEmployee}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
@@ -131,15 +226,8 @@ export default function EmployeesScreen({ navigation }) {
             <Ionicons name="people-outline" size={64} color={Colors.gray300} />
             <Text style={styles.emptyTitle}>Nenhum empregado</Text>
             <Text style={styles.emptySubtitle}>
-              Cadastre seu primeiro empregado doméstico
+              Nenhum funcionário encontrado para esta conta
             </Text>
-            <Button
-              title="Adicionar Empregado"
-              icon="add"
-              onPress={() => navigation.navigate("AddEmployee")}
-              fullWidth={false}
-              style={{ marginTop: 20, paddingHorizontal: 30 }}
-            />
           </View>
         }
       />
@@ -149,6 +237,15 @@ export default function EmployeesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  formBox: {
+    marginHorizontal: 20,
+    marginBottom: 14,
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.gray100,
+  },
   card: {
     backgroundColor: Colors.white,
     borderRadius: 20,
@@ -175,6 +272,7 @@ const styles = StyleSheet.create({
   employeeInfo: { flex: 1, marginLeft: 14 },
   employeeName: { fontSize: 16, fontWeight: "700", color: Colors.textPrimary },
   employeeRole: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  employeeEmail: { fontSize: 11, color: Colors.textLight, marginTop: 2 },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",

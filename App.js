@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
 import { Colors } from "./src/theme/colors";
 
@@ -11,6 +12,9 @@ import HomeScreen from "./src/screens/main/HomeScreen";
 import CalculatorScreen from "./src/screens/main/CalculatorScreen";
 import PlansScreen from "./src/screens/main/PlansScreen";
 import CheckInScreen from "./src/screens/main/CheckInScreen";
+import EmployeesScreen from "./src/screens/main/EmployeesScreen";
+import RecordsScreen from "./src/screens/main/RecordsScreen";
+import ReportsScreen from "./src/screens/main/ReportsScreen";
 
 function AppContent() {
   const { user, loading, logout } = useAuth();
@@ -36,6 +40,15 @@ function AppContent() {
     if (screen === "checkin") {
       return <CheckInScreen onBack={() => setScreen("home")} />;
     }
+    if (screen === "employees") {
+      return <EmployeesScreen onBack={() => setScreen("home")} />;
+    }
+    if (screen === "records") {
+      return <RecordsScreen onBack={() => setScreen("home")} />;
+    }
+    if (screen === "reports") {
+      return <ReportsScreen onBack={() => setScreen("home")} />;
+    }
     return <HomeScreen onLogout={logout} onGoTo={(dest) => setScreen(dest)} />;
   }
 
@@ -44,7 +57,7 @@ function AppContent() {
     return (
       <LoginScreen
         onLogin={() => setScreen("home")}
-        onGoToRegister={() => setScreen("welcome")}
+        onGoToRegister={() => setScreen("register")}
       />
     );
   }
@@ -68,9 +81,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 

@@ -11,21 +11,25 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import Input from "../../components/Input";
 import Button from "../../components/Button";
 import { Colors, Shadows } from "../../theme/colors";
+import { useAuth } from "../../contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
 export default function RegisterScreen({ onRegister, onGoToLogin }) {
+  const { register } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("employer");
+  const [employerEmail, setEmployerEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -48,17 +52,35 @@ export default function RegisterScreen({ onRegister, onGoToLogin }) {
     else if (password.length < 6) e.password = "Mínimo 6 caracteres";
     if (password !== confirmPassword)
       e.confirmPassword = "Senhas não coincidem";
+    if (role === "employee") {
+      if (!employerEmail.trim()) e.employerEmail = "Informe o email do empregador";
+      else if (!/\S+@\S+\.\S+/.test(employerEmail))
+        e.employerEmail = "Email do empregador inválido";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!validate()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onRegister();
-    }, 800);
+
+    const result = await register(
+      email.trim().toLowerCase(),
+      password,
+      name.trim(),
+      role,
+      employerEmail.trim().toLowerCase(),
+    );
+
+    setLoading(false);
+
+    if (result.success) {
+      // Navegação principal acontece automaticamente pelo AuthContext
+      onRegister?.();
+    } else {
+      Alert.alert("Erro ao criar conta", result.error);
+    }
   };
 
   const RoleButton = ({ type, icon, label }) => {
@@ -71,7 +93,10 @@ export default function RegisterScreen({ onRegister, onGoToLogin }) {
           styles.roleBtn,
           isActive && { borderColor: color, backgroundColor: color + "08" },
         ]}
-        onPress={() => setRole(type)}
+        onPress={() => {
+          setRole(type);
+          setErrors((prev) => ({ ...prev, employerEmail: undefined }));
+        }}
         activeOpacity={0.8}
       >
         <View
@@ -168,6 +193,17 @@ export default function RegisterScreen({ onRegister, onGoToLogin }) {
                   keyboardType="email-address"
                   error={errors.email}
                 />
+                {role === "employee" && (
+                  <Input
+                    label="Email do Empregador"
+                    icon="business-outline"
+                    value={employerEmail}
+                    onChangeText={setEmployerEmail}
+                    placeholder="empregador@email.com"
+                    keyboardType="email-address"
+                    error={errors.employerEmail}
+                  />
+                )}
                 <Input
                   label="Senha"
                   icon="lock-closed-outline"

@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function hasUserDoc(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function myRole() {
+      return hasUserDoc(request.auth.uid)
+        ? userDoc(request.auth.uid).data.role
+        : null;
+    }
+
+    function myEmployerId() {
+      return hasUserDoc(request.auth.uid)
+        ? userDoc(request.auth.uid).data.employerId
+        : null;
+    }
+
+    match /users/{userId} {
+      allow create: if isSignedIn() && request.auth.uid == userId;
+
+      // O próprio usuário pode ler seus dados; usuários autenticados podem ler
+      // documentos de empregador para fluxo de vínculo por email.
+      allow read: if isSignedIn() &&
+        (request.auth.uid == userId || resource.data.role == "employer");
+
+      allow update, delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /employees/{employeeId} {
+      allow read: if isSignedIn() && resource.data.employerId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        myRole() == "employer" &&
+        request.resource.data.employerId == request.auth.uid;
+
+      allow update, delete: if isSignedIn() &&
+        myRole() == "employer" &&
+        resource.data.employerId == request.auth.uid;
+    }
+
+    match /checkins/{checkinId} {
+      allow read: if isSignedIn() &&
+        (
+          resource.data.userId == request.auth.uid ||
+          (myRole() == "employer" && resource.data.employerId == request.auth.uid)
+        );
+
+      allow create: if isSignedIn() &&
+        myRole() == "employee" &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.type in ["entrada", "saida"] &&
+        request.resource.data.employerId == myEmployerId();
+
+      allow update, delete: if false;
+    }
+  }
+}

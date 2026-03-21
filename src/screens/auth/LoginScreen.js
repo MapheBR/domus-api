@@ -53,7 +53,7 @@ export default function LoginScreen({ onLogin, onGoToRegister }) {
     if (!validate()) return;
     setLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(email.trim().toLowerCase(), password);
 
     setLoading(false);
 

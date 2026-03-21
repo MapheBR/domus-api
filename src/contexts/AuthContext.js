@@ -39,8 +39,14 @@ export function AuthProvider({ children }) {
     return result;
   };
 
-  const register = async (email, password, name, role) => {
-    const result = await registerUser(email, password, name, role);
+  const register = async (email, password, name, role, employerEmail) => {
+    const result = await registerUser(
+      email,
+      password,
+      name,
+      role,
+      employerEmail,
+    );
     return result;
   };
 
